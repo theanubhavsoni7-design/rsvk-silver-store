@@ -1,0 +1,26 @@
+{
+  "id": "/rsvk-silver-store/",
+  "name": "Radhe Shyam Vishnu Kumar Jewellers",
+  "short_name": "RSVK Silver",
+  "description": "Silver jewellery collection and order requests.",
+  "start_url": "/rsvk-silver-store/",
+  "scope": "/rsvk-silver-store/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#f5f1e9",
+  "theme_color": "#171512",
+  "icons": [
+    {
+      "src": "/rsvk-silver-store/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/rsvk-silver-store/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ]
+}

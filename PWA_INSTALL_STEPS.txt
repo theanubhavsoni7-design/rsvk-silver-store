@@ -1,0 +1,14 @@
+RSVK SILVER STORE — PWA UPDATE
+Upload/replace all files in this ZIP in the ROOT of your existing GitHub repository:
+theanubhavsoni7-design/rsvk-silver-store
+
+Added: manifest.json, service-worker.js, icons/icon-192.png, icons/icon-512.png.
+Updated: index.html (manifest links + service worker registration).
+All original files from the supplied website package are retained.
+
+After upload:
+1. Wait for GitHub Pages deployment to finish.
+2. Open https://theanubhavsoni7-design.github.io/rsvk-silver-store/ in Chrome.
+3. Refresh once and wait a few seconds.
+4. Chrome menu (⋮) > Install app. If it says already installed, search app drawer for "RSVK Silver".
+This creates an installable PWA; it does not publish to Google Play.
