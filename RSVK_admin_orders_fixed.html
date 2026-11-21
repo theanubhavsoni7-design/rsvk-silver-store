@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>RSVK Admin</title>
+<style>
+:root{--bg:#f5f1e9;--paper:#fffdf8;--ink:#24211c;--gold:#ad8954;--line:#e6ddcf;--muted:#756e63}*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font-family:Arial,sans-serif}.head{background:#191713;color:#f2e9da;padding:20px 5vw;display:flex;justify-content:space-between;align-items:center;gap:12px}.head b{font:22px Georgia}.wrap{max-width:1050px;margin:26px auto;padding:0 14px}.panel{background:var(--paper);border:1px solid var(--line);padding:20px;margin-bottom:16px}.panel h2{font:26px Georgia;font-weight:400;margin:0 0 8px}.muted{font-size:12px;color:var(--muted);line-height:1.6}.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.field{display:flex;flex-direction:column;gap:6px}.full{grid-column:1/-1}label{font-size:10px;letter-spacing:1px;text-transform:uppercase;color:var(--muted)}input,textarea,select{width:100%;padding:12px;border:1px solid #ddd3c4;background:white;border-radius:2px;font:14px Arial}textarea{min-height:76px}button{padding:12px 16px;border:1px solid #191713;background:#191713;color:white;cursor:pointer}button.secondary{background:transparent;color:#191713}button.danger{background:#8e3028;border-color:#8e3028}.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}.status{padding:10px;background:#f0ece4;font-size:12px;margin:12px 0;white-space:pre-wrap}.hidden{display:none!important}.product{display:grid;grid-template-columns:76px 1fr auto;gap:12px;align-items:center;border-top:1px solid var(--line);padding:12px 0}.product img{width:76px;height:76px;object-fit:cover;background:#eee}.product strong{font:17px Georgia}.small{font-size:11px;color:var(--muted);margin-top:5px}.topline{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}@media(max-width:600px){.grid{grid-template-columns:1fr}.full{grid-column:auto}.product{grid-template-columns:60px 1fr}.product img{width:60px;height:60px}.product .row{grid-column:1/-1}}
+</style></head><body>
+<header class="head"><div><b>RSVK · Admin Panel</b><div style="font-size:10px;letter-spacing:2px;margin-top:5px">PRIVATE STORE MANAGEMENT</div></div><button id="logout" class="secondary hidden">Sign out</button></header>
+<main class="wrap">
+<section class="panel" id="loginPanel"><h2>Admin sign-in</h2><p class="muted">Sign in with the admin account created in Supabase Authentication.</p><form id="loginForm" class="grid"><div class="field"><label>Email</label><input id="email" type="email" autocomplete="username" required></div><div class="field"><label>Password</label><input id="password" type="password" autocomplete="current-password" required></div><div class="full"><button type="submit">Sign in</button></div></form><div id="loginMsg" class="status">Use your own Supabase admin credentials. Never share your password.</div></section>
+<section id="app" class="hidden">
+<div class="panel"><div class="topline"><div><h2>Store overview</h2><div class="muted" id="who"></div></div><button id="refresh" class="secondary">Refresh products</button></div><div id="appMsg" class="status">Connected. Product data will load here.</div></div>
+<section class="panel"><h2 id="formTitle">Add a product</h2><p class="muted">Enter verified product details only. Add multiple product photos if available.</p>
+<form id="productForm" class="grid">
+<input type="hidden" id="productId">
+<div class="field full"><label>Product name *</label><input id="name" required maxlength="120" placeholder="e.g. Silver Payal"></div>
+<div class="field"><label>Category</label><select id="category"><option value="payal">Payal & Anklets</option><option value="rings">Rings & Bichhiya</option><option value="traditional">Traditional</option><option value="chains">Chains & Pendants</option><option value="other">Other</option></select></div>
+<div class="field"><label>Price (₹) *</label><input id="price" type="number" min="0" step="0.01" required></div>
+<div class="field"><label>Weight (grams)</label><input id="weight" type="number" min="0" step="0.001"></div>
+<div class="field"><label>Verified purity</label><input id="purity" placeholder="e.g. 925 Sterling Silver"></div>
+<div class="field"><label>Stock quantity</label><input id="stock" type="number" min="0" step="1" value="1"></div>
+<div class="field"><label>Product photos (multiple)</label><input id="photos" type="file" accept="image/*" multiple></div>
+<div class="field"><label>Active on website</label><select id="active"><option value="true">Yes</option><option value="false">No</option></select></div>
+<div class="field full"><label>Description</label><textarea id="description"></textarea></div>
+<div class="full row"><button type="submit" id="saveBtn">Save product</button><button type="button" id="cancelEdit" class="secondary">Clear form</button></div>
+</form></section>
+<section class="panel"><div class="topline"><h2>Products</h2><span class="muted" id="productCount"></span></div><div id="productsList"></div></section>
+<section class="panel"><div class="topline"><h2>Order requests</h2><button class="secondary" id="refreshOrders">Refresh orders</button></div><p class="muted">Customer requests are saved securely. Call the customer to confirm stock and delivery before accepting the order.</p><div id="ordersList" class="status">Loading order requests…</div></section>
+</section></main>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+const SUPABASE_URL="https://vpuiwfxlrsgmcduxmuiy.supabase.co";
+const SUPABASE_PUBLISHABLE_KEY="sb_publishable_MJuze7rrPMIZ8PhJv8gz-A_zdsHPw12";
+const client=window.supabase.createClient(SUPABASE_URL,SUPABASE_PUBLISHABLE_KEY);
+const $=id=>document.getElementById(id);
+const say=(id,msg)=>$(id).textContent=msg;
+const safe=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+let currentUser=null;
+async function verifyAdmin(user){
+ const {data,error}=await client.from("admin_users").select("user_id").eq("user_id",user.id).maybeSingle();
+ if(error)throw error;if(!data)throw new Error("This account is not listed as an admin.");
+}
+async function showApp(user){
+ currentUser=user;await verifyAdmin(user);
+ $("loginPanel").classList.add("hidden");$("app").classList.remove("hidden");$("logout").classList.remove("hidden");
+ say("who","Signed in as "+user.email+" · Admin verified");await loadProducts();await loadOrders();
+}
+$("loginForm").addEventListener("submit",async e=>{e.preventDefault();say("loginMsg","Signing in…");
+ const {data,error}=await client.auth.signInWithPassword({email:$("email").value.trim(),password:$("password").value});
+ if(error){say("loginMsg",error.message);return}
+ try{await showApp(data.user)}catch(err){await client.auth.signOut();say("loginMsg","Admin verification failed: "+err.message)}
+});
+$("logout").onclick=async()=>{await client.auth.signOut();location.reload()};
+$("refresh").onclick=loadProducts;
+$("refreshOrders").onclick=loadOrders;
+$("cancelEdit").onclick=clearForm;
+function clearForm(){ $("productForm").reset();$("productId").value="";$("stock").value="1";$("active").value="true";$("formTitle").textContent="Add a product";$("saveBtn").textContent="Save product";}
+async function loadOrders(){
+ const box=$("ordersList"); box.textContent="Loading order requests…";
+ try {
+ const {data:orders,error}=await client.from("orders").select("*").order("created_at",{ascending:false}).limit(100);
+ if(error){box.textContent="Could not load orders: "+error.message;return;}
+ if(!orders||!orders.length){box.textContent="No order requests received yet.";return;}
+ const ids=orders.map(o=>o.id);
+ const {data:items,error:itemError}=await client.from("order_items").select("*").in("order_id",ids);
+ if(itemError){box.textContent="Orders loaded, but item details could not be loaded: "+itemError.message;return;}
+ box.innerHTML=orders.map(o=>{
+  const lines=(items||[]).filter(i=>i.order_id===o.id);
+  const total=lines.reduce((sum,i)=>sum+Number(i.unit_price)*Number(i.quantity),0);
+  return `<div style="border-bottom:1px solid #e6ddcf;padding:12px 0">
+   <strong>${safe(o.order_number||"Order")}</strong> · ${safe(o.status||"pending")}<br>
+   <span class="small">${safe(new Date(o.created_at).toLocaleString("en-IN"))}</span>
+   <p><b>${safe(o.customer_name)}</b> · ${safe(o.phone)}<br>${safe(o.address)}, ${safe(o.state)} - ${safe(o.pincode)}</p>
+   <div>${lines.map(i=>`${safe(i.product_name)} × ${i.quantity} — ₹${Number(i.unit_price).toLocaleString("en-IN")}`).join("<br>")}</div>
+   <p><b>Estimated item total: ₹${total.toLocaleString("en-IN")}</b></p>
+   <div class="small">Delivery preference: ${safe(o.fulfilment_method||"Not specified")}<br>Note: ${safe(o.customer_note||"—")}</div>
+  </div>`;
+ }).join("");
+ } catch(err) { box.textContent="Order display error: "+(err?.message||String(err)); }
+}
+async function loadProducts(){
+ say("appMsg","Loading products…");
+ const {data,error}=await client.from("products").select("id,name,category,purity,weight_grams,price,stock_quantity,is_active,description,product_images(storage_path,sort_order)").order("created_at",{ascending:false});
+ if(error){say("appMsg","Could not load products: "+error.message);return}
+ $("productCount").textContent=data.length+" product(s)";
+ $("productsList").innerHTML=data.map(p=>{const path=(p.product_images||[]).sort((a,b)=>(a.sort_order||0)-(b.sort_order||0))[0]?.storage_path;const src=path?client.storage.from("product-images").getPublicUrl(path).data.publicUrl:"";
+ return `<div class="product"><img src="${safe(src)}" alt=""><div><strong>${safe(p.name)}</strong><div class="small">₹${Number(p.price).toLocaleString("en-IN")} · ${safe(p.weight_grams??"—")} g · ${safe(p.purity||"Purity not entered")} · Stock ${safe(p.stock_quantity??0)} · ${p.is_active?"Active":"Hidden"}</div></div><div class="row"><button class="secondary" onclick="editProduct('${p.id}')">Edit</button><button class="danger" onclick="deleteProduct('${p.id}')">Delete</button></div></div>`}).join("")||'<p class="muted">No products yet. Add your first verified product above.</p>';
+ window.__rsvkProducts=data;say("appMsg","Products loaded successfully.");
+}
+window.editProduct=id=>{const p=(window.__rsvkProducts||[]).find(x=>String(x.id)===String(id));if(!p)return;$("productId").value=p.id;$("name").value=p.name||"";$("category").value=p.category||"other";$("price").value=p.price??"";$("weight").value=p.weight_grams??"";$("purity").value=p.purity||"";$("stock").value=p.stock_quantity??0;$("active").value=String(!!p.is_active);$("description").value=p.description||"";$("formTitle").textContent="Edit product";$("saveBtn").textContent="Update product";window.scrollTo({top:0,behavior:"smooth"})};
+window.deleteProduct=async id=>{if(!confirm("Delete this product?"))return;const {error}=await client.from("products").delete().eq("id",id);if(error){say("appMsg","Delete failed: "+error.message);return}await loadProducts()};
+$("productForm").addEventListener("submit",async e=>{e.preventDefault();$("saveBtn").disabled=true;say("appMsg","Saving product…");
+ const id=$("productId").value;const payload={name:$("name").value.trim(),slug:$("name").value.trim().toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/(^-|-$)/g,"")+"-"+Date.now().toString().slice(-5),category:$("category").value,price:Number($("price").value),weight_grams:$("weight").value===""?null:Number($("weight").value),purity:$("purity").value.trim()||null,stock_quantity:Number($("stock").value||0),is_active:$("active").value==="true",description:$("description").value.trim()||null,updated_at:new Date().toISOString()};
+ let result=id?await client.from("products").update(payload).eq("id",id).select("id").single():await client.from("products").insert(payload).select("id").single();
+ if(result.error){say("appMsg","Save failed: "+result.error.message);$("saveBtn").disabled=false;return}
+ const productId=result.data.id;const files=[...$("photos").files];
+ if(files.length){for(let i=0;i<files.length;i++){const file=files[i];const ext=(file.name.split(".").pop()||"jpg").toLowerCase().replace(/[^a-z0-9]/g,"");const path=`${productId}/${Date.now()}-${i}.${ext}`;
+ const up=await client.storage.from("product-images").upload(path,file,{upsert:false,contentType:file.type||"image/jpeg"});
+ if(up.error){say("appMsg","Product saved, but photo upload failed: "+up.error.message+" Check Storage upload policy.");$("saveBtn").disabled=false;return}
+ const ins=await client.from("product_images").insert({product_id:productId,storage_path:path,alt_text:payload.name,sort_order:i});
+ if(ins.error){say("appMsg","Photo uploaded but image record failed: "+ins.error.message);$("saveBtn").disabled=false;return}
+ }}
+ clearForm();await loadProducts();say("appMsg","Product saved. "+(files.length?files.length+" photo(s) uploaded.":"No new photos uploaded."));$("saveBtn").disabled=false;
+});
+client.auth.getSession().then(async({data})=>{if(data.session){try{await showApp(data.session.user)}catch(e){say("loginMsg","Admin verification failed: "+e.message)}}});
+</script></body></html>
